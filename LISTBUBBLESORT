@@ -1,0 +1,208 @@
+.eqv char      	$s0
+.eqv index_lb   $t0
+.eqv digit		$s1
+.eqv num 		$s2
+.eqv buffer		$s3
+.eqv multiplicador	$t1
+.eqv index_sw	$t2
+.eqv index_wr	$t3
+
+.eqv endereco 	$t8
+.eqv lenght 	400
+.eqv quociente 	$t6
+.eqv resto 		$t7
+
+
+.eqv char2 $s4
+.eqv aux $s5
+.eqv flag $t4
+
+
+.data
+	
+	
+			
+    lista_numerica: 	.space 1024
+    			.align 2	
+    			
+    fout: .asciiz "lista.txt"
+    
+    fin: .asciiz "lista2.txt"
+  
+ 	
+    	 	
+    
+    
+.text	
+    li 	index_sw, 0
+    li 	index_lb, 0
+    li 	index_wr, 0
+    
+open_file:
+    li $v0, 13
+    la $a0, fout
+    li $a1, 0
+    li $a2, 0
+    syscall
+    move buffer, $v0 
+
+
+read_file:
+    li $v0, 14
+    move $a0, buffer 
+    la $a1, lista_numerica
+    li $a2, 1024
+    syscall
+    move $s3, $v0
+    
+    
+initiate:
+    
+    li 	num, 0
+    li 	multiplicador, 1
+    
+    
+loop:
+    lb 		char, lista_numerica(index_lb)
+    add 	index_lb, index_lb, 1
+    beq 	char, 0, store
+    beq 	char, ',', store
+    beq 	char, '-', sinal
+    sub 	digit, char, 0x30 #char2num
+    mul 	num, num, 10
+    add 	num, num, digit
+    j		loop
+           
+sinal:
+    li 	multiplicador, -1
+    j 	loop
+
+store:
+    mul 	num, num, multiplicador
+    sw 		num, lista_numerica(index_sw)
+    add 	index_sw, index_sw, 4
+    beq 	char, 0, initsort
+    j		initiate
+    
+
+
+initsort:
+    li index_lb, 0
+    li index_sw, 0
+    li flag, 0 #se flag =0, sair
+    
+loopBubbleSort:
+	lw char, lista_numerica(index_lb)
+	add index_lb, index_lb, 4
+	lw char2, lista_numerica(index_lb)
+	
+	bgt char, char2, sort
+	bgt index_lb, 401, verifyflag
+	
+	addi index_sw, index_sw, 4
+	j loopBubbleSort
+
+
+   
+	
+sort:
+	li flag, 1
+	move aux, char
+	move char, char2
+	sw char, lista_numerica(index_sw)
+	addi index_sw, index_sw, 4
+	move char2, aux
+	sw char2, lista_numerica(index_sw)
+	j loopBubbleSort
+
+verifyflag:
+	beq flag, 0, converter_para_string
+	beq flag, 1, initsort
+	
+
+
+.data 
+	file_name: 	.asciiz "list1.txt"
+			   	.align 2
+	lista_char: .space 1024
+ 	buffw: .space 1024
+ 	
+
+
+
+.text
+    
+converter_para_string:
+#CONVERTER PARA STRING
+
+	li 	index_lb, 0 #indexLista
+    	li 	index_sw, 0 #indexNum
+
+	
+restart:
+	li flag, 0
+    	li index_wr, 0 #indexBuffer
+
+teste_sinal:
+	bge index_sw, lenght, escrita
+	lw num, lista_numerica(index_sw)
+	add index_sw, index_sw, 4
+	bge num, $zero, converte
+	li flag, 1
+	mul num, num, -1
+
+converte:
+	move quociente, num
+
+proximo:
+	li $t9, 10
+	div quociente, $t9 #div por 10
+	mfhi resto
+	mflo quociente
+	add char, resto, 0x30
+	sb char, buffw(index_wr)
+	add index_wr, index_wr, 1
+	bnez quociente, proximo
+	beqz flag, ordena_digitos #se positivo
+	li $t9, '-' #senao
+	sb $t9, buffw(index_wr)
+	add index_wr, index_wr, 1
+	
+ordena_digitos:
+	beqz index_wr, sai
+	add index_wr, index_wr, -1
+	lb char, buffw(index_wr)
+	sb char, lista_char(index_lb)
+	add index_lb, index_lb, 1
+	j ordena_digitos
+
+sai:
+	bge index_sw, lenght, escrita
+	li $t9, ','
+	sb $t9, lista_char(index_lb)
+	add index_lb, index_lb, 1
+	j restart
+	
+escrita:
+	li $v0, 13
+	la $a0, file_name
+	li $a1, 1
+	li $a2, 0
+	syscall
+	
+read: 
+	move $s7, $v0
+	li $v0, 15
+	move $a0, $s7
+	la $a1, lista_char
+	li $a2, 1023
+	syscall
+
+close: 
+	li $v0, 16
+	move $a0, $s7
+    
+
+exit:
+    li  $v0, 10
+    syscall
